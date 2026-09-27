@@ -4,17 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-09-27
+
+### Highlights
+
+- Keep every web tool available from the first message with `"toolActivation": "eager"`, for models that rarely call `web_enable` on their own.
+- Search with You.com when you select it explicitly.
+- Give each Pi process its own fetched-page cache so parallel sessions stop evicting each other's pages.
+- Model allowlists in `enabledModels` or `--models` now work with every pattern Pi accepts.
+- Resumed older sessions keep the tools they had instead of gaining `web_enable`.
+
 ### Added
 
-- Set `"toolActivation": "eager"` in `web-search.json` to skip `web_enable` and keep every enabled web tool available from the first request. The `web_enable` guidance now tells the model to call it first whenever current, external, or linked information could help. Thanks to [@ackalker](https://github.com/ackalker) for [issue #458](https://github.com/nicobailon/pi-web-access/issues/458).
-- Set `PI_WEB_ACCESS_CACHE_ROOT` to give a Pi process its own fetched-content cache, stored in `web-search-cache` inside that directory, without moving `web-search.json`. Concurrent sessions then stop evicting each other's cached pages. Thanks to [@goodman-b](https://github.com/goodman-b) for [issue #457](https://github.com/nicobailon/pi-web-access/issues/457).
-- You.com is available as an optional search provider. Set `youApiKey` or `YDC_API_KEY`, then select `provider: "you"`, add it to a provider array, or list it in `searchRouting`. It is never picked by `auto` or `provider: "all"`, and it appears in the Curator. Thanks to [@mouse-value-add](https://github.com/mouse-value-add) for [PR #461](https://github.com/nicobailon/pi-web-access/pull/461).
+- Set `"toolActivation": "eager"` in `web-search.json` to skip `web_enable` and keep every enabled web tool available from the first message. With the default `"dynamic"` setting, `web_enable` now tells the model to call it first whenever current, external, or linked information could help. Thanks to [@ackalker](https://github.com/ackalker) for [issue #458](https://github.com/nicobailon/pi-web-access/issues/458).
+- Set `PI_WEB_ACCESS_CACHE_ROOT` to a directory to give a Pi process its own fetched-page cache. The cache goes in a `web-search-cache` folder inside that directory, and `web-search.json` stays where it is. Parallel sessions then stop evicting each other's cached pages. Thanks to [@goodman-b](https://github.com/goodman-b) for [issue #457](https://github.com/nicobailon/pi-web-access/issues/457).
+- You.com is available as an optional search provider. Set `youApiKey` or `YDC_API_KEY`, then select `provider: "you"`, add it to a provider list, or list it in `searchRouting`. It also appears in the Curator. `auto` and `provider: "all"` never pick it. Thanks to [@mouse-value-add](https://github.com/mouse-value-add) for [PR #461](https://github.com/nicobailon/pi-web-access/pull/461).
 
 ### Fixed
 
-- Resuming a session that was recorded without `web_enable`, for example one started before pi-web-access was installed or upgraded, no longer adds `web_enable` to the conversation. Sessions keep the tools they recorded. Thanks to [@nilsoskar](https://github.com/nilsoskar) for [issue #462](https://github.com/nicobailon/pi-web-access/issues/462).
-- Answer mode, query rewrite, and summaries now use the model scope Pi already resolved from `enabledModels` or `--models`, so every pattern Pi accepts works here too, including extglobs such as `@(!(openai-codex))/*` and partial names such as `sonnet`. Before, an allowlist made of those patterns rejected every model. Thanks to [@IdrisGit](https://github.com/IdrisGit) for [issue #463](https://github.com/nicobailon/pi-web-access/issues/463) and [PR #464](https://github.com/nicobailon/pi-web-access/pull/464).
-- Dynamic tool activation now checks the running Pi instead of the `@earendil-works/pi-coding-agent` version installed beside the extension, so a managed install that still carries an older peer keeps `web_enable`. It needs Pi 0.86.0 or newer, which added transcript-backed tool changes; older Pi keeps every enabled web tool available. Thanks to [@PhrZer](https://github.com/PhrZer) for [PR #456](https://github.com/nicobailon/pi-web-access/pull/456) and [@nguyenchiencong](https://github.com/nguyenchiencong) for [issue #444](https://github.com/nicobailon/pi-web-access/issues/444).
+- Resuming a session that never had `web_enable`, for example one started before pi-web-access was installed or upgraded, no longer adds it partway through the conversation. The session keeps the tools it already had. Thanks to [@nilsoskar](https://github.com/nilsoskar) for [issue #462](https://github.com/nicobailon/pi-web-access/issues/462).
+- Answer mode, query rewrite, and summaries now follow the model list Pi builds from `enabledModels` or `--models`, so every pattern Pi accepts works here too, including patterns such as `@(!(openai-codex))/*` and partial names such as `sonnet`. Before, an allowlist made of those patterns blocked every model. Thanks to [@IdrisGit](https://github.com/IdrisGit) for [issue #463](https://github.com/nicobailon/pi-web-access/issues/463) and [PR #464](https://github.com/nicobailon/pi-web-access/pull/464).
+- `web_enable` now depends on the version of Pi you are running, not an older Pi package that may be installed next to the extension, so those setups no longer lose it. It needs Pi 0.86.0 or newer. On older Pi, every enabled web tool stays available from the start. Thanks to [@PhrZer](https://github.com/PhrZer) for [PR #456](https://github.com/nicobailon/pi-web-access/pull/456) and [@nguyenchiencong](https://github.com/nguyenchiencong) for [issue #444](https://github.com/nicobailon/pi-web-access/issues/444).
 
 ## [0.32.0] - 2026-09-26
 
