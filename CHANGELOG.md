@@ -4,18 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-09-26
+
+### Highlights
+
+- Spread Tavily searches across up to 20 API keys, with automatic failover when one runs out of quota.
+- Use Gemini Web browser cookies on KDE Linux, where Chrome keeps its password in KWallet.
+- Search with OpenAI through OpenCode and `opencode-go` without session errors or the wrong model.
+- See full search queries and URLs in tool-call labels.
+- Globally installed Pi no longer shows false version or duplicate TypeBox warnings.
+
 ### Added
 
-- Tavily searches can fail over across `TAVILY_API_KEY_1` through `TAVILY_API_KEY_20`, starting at `TAVILY_API_KEY_INDEX`. Thanks to [@apoapostolov](https://github.com/apoapostolov) for [PR #430](https://github.com/nicobailon/pi-web-access/pull/430).
+- Tavily can use a pool of up to 20 API keys. Set `TAVILY_API_KEY_1` through `TAVILY_API_KEY_20`, and when a key hits a quota or auth error the search moves on to the next one. `TAVILY_API_KEY_INDEX` picks the key to try first, and `TAVILY_API_KEY` / `tavilyApiKey` is tried last. Thanks to [@apoapostolov](https://github.com/apoapostolov) for [PR #430](https://github.com/nicobailon/pi-web-access/pull/430).
 
 ### Fixed
 
-- Decrypt Chrome and Chromium cookies from their standard KWallet safe-storage entries when Secret Service has no matching password during a KDE session. Thanks to [@dianzuan](https://github.com/dianzuan) for [issue #436](https://github.com/nicobailon/pi-web-access/issues/436).
-- Declare `typebox` as a host-provided peer dependency to avoid duplicate runtime modules and Pi startup warnings. Thanks to [@ksreenivasan](https://github.com/ksreenivasan) for [issue #442](https://github.com/nicobailon/pi-web-access/issues/442) and [PR #443](https://github.com/nicobailon/pi-web-access/pull/443).
-- Show complete search queries and fetch URLs in tool-call labels when the terminal has room. Thanks to [@TheBestPessimist](https://github.com/TheBestPessimist) for [issue #440](https://github.com/nicobailon/pi-web-access/issues/440).
-- Dynamic tool activation no longer warns "requires Pi 0.86.1 or newer" when Pi is installed globally. Thanks to [@samsimsom](https://github.com/samsimsom) for [issue #428](https://github.com/nicobailon/pi-web-access/issues/428).
-- OpenAI `web_search` requests to `opencode.ai` now send the OpenCode session headers, fixing `400 MissingSessionID` errors; other destinations never receive them. Thanks to [@juliocc](https://github.com/juliocc) for [PR #445](https://github.com/nicobailon/pi-web-access/pull/445).
-- Automatic OpenAI search model selection falls back to the newest versioned `gpt-<version>` id, so gateways such as `opencode-go` no longer pick a non-OpenAI model when `openaiSearchModel` is unset.
+- On KDE Linux, Chrome and Chromium cookies for Gemini Web now decrypt with the password stored in KWallet when Secret Service doesn't have it. Thanks to [@dianzuan](https://github.com/dianzuan) for [issue #436](https://github.com/nicobailon/pi-web-access/issues/436).
+- OpenAI search requests to `opencode.ai` now include OpenCode's session headers, fixing `400 MissingSessionID` errors. Other destinations never receive these headers. Thanks to [@juliocc](https://github.com/juliocc) for [PR #445](https://github.com/nicobailon/pi-web-access/pull/445).
+- When `openaiSearchModel` isn't set, OpenAI search through gateways such as `opencode-go` now picks the newest GPT model instead of a non-OpenAI model.
+- Globally installed Pi no longer shows a false "requires Pi 0.86.1 or newer" warning, and dynamic tool activation now works there. Thanks to [@samsimsom](https://github.com/samsimsom) for [issue #428](https://github.com/nicobailon/pi-web-access/issues/428).
+- TypeBox now comes from Pi instead of being installed separately, which avoids duplicate copies and Pi startup warnings. Thanks to [@ksreenivasan](https://github.com/ksreenivasan) for [issue #442](https://github.com/nicobailon/pi-web-access/issues/442) and [PR #443](https://github.com/nicobailon/pi-web-access/pull/443).
+- Tool-call labels show full search queries and fetch URLs when the terminal is wide enough, instead of cutting them off at 60 characters. Thanks to [@TheBestPessimist](https://github.com/TheBestPessimist) for [issue #440](https://github.com/nicobailon/pi-web-access/issues/440).
 
 ## [0.31.0] - 2026-09-22
 
