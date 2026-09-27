@@ -60,6 +60,25 @@ async function getApiKey(signal?: AbortSignal): Promise<string | null> {
 	});
 }
 
+const TAVILY_KEY_POOL_MAX = 20;
+const TAVILY_KEY_POOL_RETRIES = new Set([401, 402, 403, 429, 432]);
+
+function tavilyKeyPool(): string[] {
+	const keyBySlot = new Map<number, string>();
+	for (const [name, value] of Object.entries(process.env)) {
+		const match = name.match(/^TAVILY_API_KEY_(\d+)$/);
+		if (!match || typeof value !== "string" || value.trim().length === 0) continue;
+		const slot = Number(match[1]);
+		if (!Number.isSafeInteger(slot) || slot < 1 || slot > TAVILY_KEY_POOL_MAX) continue;
+		keyBySlot.set(slot, value.trim());
+	}
+	const entries = [...keyBySlot.entries()].sort(([a], [b]) => a - b);
+	if (entries.length === 0) return [];
+	const requestedSlot = Math.max(1, Number.parseInt(process.env.TAVILY_API_KEY_INDEX ?? "", 10) || 1);
+	const start = Math.max(0, entries.findIndex(([slot]) => slot >= requestedSlot));
+	return [...new Set([...entries.slice(start), ...entries.slice(0, start)].map(([, key]) => key))];
+}
+
 function getApiUrl(): string {
 	return `${resolveApiBaseUrl({
 		configKey: "tavilyBaseUrl",
@@ -141,12 +160,11 @@ export function isTavilyAvailable(): boolean {
 		provider: "Tavily",
 		configuredValue: loadConfig().tavilyApiKey,
 		environmentValue: process.env.TAVILY_API_KEY,
-	});
+	}) || tavilyKeyPool().length > 0;
 }
 
 export async function searchWithTavily(query: string, options: TavilySearchOptions = {}): Promise<SearchResponse> {
 	const apiUrl = getApiUrl();
-	const apiKey = await requireApiKey(options.signal);
 	const numResults = normalizeSearchResultCount(options.numResults);
 	const body: Record<string, unknown> = {
 		query,
@@ -158,7 +176,63 @@ export async function searchWithTavily(query: string, options: TavilySearchOptio
 		...mapDomainFilter(options.domainFilter),
 	};
 
+	const signal = requestSignal(options.signal);
 	const activityId = activityMonitor.logStart({ type: "api", query });
+	try {
+		const pool = tavilyKeyPool();
+		if (pool.length === 0) {
+			return await tavilySearch(apiUrl, await requireApiKey(signal), body, numResults, options.includeContent === true, signal, activityId);
+		}
+
+		let lastError: Error | null = null;
+		const tryKey = async (apiKey: string): Promise<SearchResponse | null> => {
+			try {
+				return await tavilySearch(apiUrl, apiKey, body, numResults, options.includeContent === true, signal, activityId);
+			} catch (err) {
+				if (options.signal?.aborted || (err instanceof Error && err.name === "AbortError")) throw err;
+				if (!TAVILY_KEY_POOL_RETRIES.has(tavilyErrorStatus(err))) throw err;
+				lastError = err instanceof Error ? err : new Error(String(err));
+				return null;
+			}
+		};
+		for (const apiKey of pool) {
+			const result = await tryKey(apiKey);
+			if (result) return result;
+		}
+
+		const fallback = await getApiKey(signal);
+		if (fallback && !pool.includes(fallback)) {
+			const result = await tryKey(fallback);
+			if (result) return result;
+		}
+		throw lastError ?? new Error("Tavily key pool exhausted");
+	} catch (err) {
+		if (options.signal?.aborted || (err instanceof Error && err.name === "AbortError")) activityMonitor.logComplete(activityId, 0);
+		else {
+			const status = tavilyErrorStatus(err);
+			if (status > 0) activityMonitor.logComplete(activityId, status);
+			else activityMonitor.logError(activityId, errorMessage(err));
+		}
+		throw err;
+	}
+}
+
+function tavilyErrorStatus(err: unknown): number {
+	const status = (err as { status?: unknown }).status;
+	if (typeof status === "number") return status;
+	const match = errorMessage(err).match(/\bTavily API error (\d{3})\b/);
+	return match ? Number(match[1]) : 0;
+}
+
+async function tavilySearch(
+	apiUrl: string,
+	apiKey: string,
+	body: Record<string, unknown>,
+	numResults: number,
+	includeContent: boolean,
+	signal: AbortSignal,
+	activityId: string,
+): Promise<SearchResponse> {
 	let response: Response;
 	try {
 		response = await fetchWithCredentialRedirects(apiUrl, {
@@ -168,13 +242,11 @@ export async function searchWithTavily(query: string, options: TavilySearchOptio
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify(body),
-			signal: requestSignal(options.signal),
+			signal,
 		}, ["Authorization"]);
 	} catch (err) {
 		const message = errorMessage(err);
 		const redactedMessage = redactCredential(message, apiKey);
-		if (redactedMessage.toLowerCase().includes("abort")) activityMonitor.logComplete(activityId, 0);
-		else activityMonitor.logError(activityId, redactedMessage);
 		if (redactedMessage === message) throw err;
 		const redactedError = new Error(redactedMessage);
 		if (err instanceof Error) redactedError.name = err.name;
@@ -182,7 +254,6 @@ export async function searchWithTavily(query: string, options: TavilySearchOptio
 	}
 
 	if (!response.ok) {
-		activityMonitor.logComplete(activityId, response.status);
 		const errorText = redactCredential(await response.text(), apiKey);
 		throw new Error(`Tavily API error ${response.status}: ${errorText.slice(0, 300)}`);
 	}
@@ -191,7 +262,6 @@ export async function searchWithTavily(query: string, options: TavilySearchOptio
 	try {
 		data = await response.json() as TavilyResponse;
 	} catch (err) {
-		activityMonitor.logComplete(activityId, response.status);
 		throw new Error(`Tavily API returned invalid JSON: ${errorMessage(err)}`);
 	}
 
@@ -200,7 +270,7 @@ export async function searchWithTavily(query: string, options: TavilySearchOptio
 		answer: typeof data.answer === "string" ? data.answer : "",
 		results: mapResults(data.results, numResults),
 	};
-	if (options.includeContent) {
+	if (includeContent) {
 		const inlineContent = mapInlineContent(data.results);
 		if (inlineContent.length > 0) result.inlineContent = inlineContent;
 	}
