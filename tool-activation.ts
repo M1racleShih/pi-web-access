@@ -1,4 +1,4 @@
-import { buildSessionContext, VERSION, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { buildSessionContext, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 export type WebCapability = "search" | "source-check" | "fetch" | "stored-content";
@@ -18,9 +18,13 @@ const CAPABILITY_LABELS: Record<WebCapability, string> = {
 
 function supportsDynamicTools(pi: ExtensionAPI): boolean {
 	if (typeof pi.getAllTools !== "function" || typeof pi.getActiveTools !== "function" || typeof pi.setActiveTools !== "function") return false;
-	// Read the running Pi's version: global and binary installs have no Pi package on disk to resolve.
-	const [major, minor, patch] = String(VERSION).split(".").map(part => Number.parseInt(part, 10));
-	return major > 0 || minor > 86 || minor === 86 && patch >= 1;
+	// Pi 0.86.0 shipped transcript-backed tool changes in the same release that made pi.on() return
+	// an unsubscribe function. Probe the host API object: an imported VERSION can come from a stale
+	// Pi package installed beside this extension instead of the running host.
+	const unsubscribe: unknown = pi.on("session_start", () => {});
+	if (typeof unsubscribe !== "function") return false;
+	unsubscribe();
+	return true;
 }
 
 function hasToolDeclarations(messages: unknown[]): boolean {
@@ -43,7 +47,7 @@ function currentTranscriptToolNames(messages: unknown[]): string[] {
 export function registerWebToolActivation(pi: ExtensionAPI, tools: ReadonlyArray<WebActivationTool>): void {
 	if (tools.length === 0) return;
 	if (!supportsDynamicTools(pi)) {
-		console.warn(`[pi-web-access] Dynamic tool activation requires Pi 0.86.1 or newer (running ${VERSION}); web tools remain eagerly available.`);
+		console.warn("[pi-web-access] Dynamic tool activation requires Pi 0.86.0 or newer; web tools remain eagerly available.");
 		return;
 	}
 	const names = tools.map(tool => tool.name);

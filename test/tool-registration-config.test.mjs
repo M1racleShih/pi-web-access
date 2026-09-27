@@ -30,7 +30,7 @@ function runRegistrationWithConfig(configText) {
 				registerTool(tool) { tools.push({ name: tool.name, description: tool.description, promptSnippet: tool.promptSnippet, parameters: tool.parameters }); active.push(tool.name); },
 				registerCommand(name) { commands.push(name); },
 				registerShortcut() {},
-				on() {},
+				on() { return () => {}; },
 				getAllTools() { return tools; },
 				getActiveTools() { return active; },
 				setActiveTools(names) { active = [...names]; },

@@ -65,7 +65,7 @@ function buildChildScript(moduleUrl) {
 				if (property === "registerTool") return (tool) => tools.push(tool);
 				if (property === "registerCommand") return (name) => commands.push(name);
 				if (property === "registerShortcut") return (name) => shortcuts.push(name);
-				if (property === "on") return (name) => events.push(name);
+				if (property === "on") return (name) => { events.push(name); return () => {}; };
 				return () => {};
 			},
 		});

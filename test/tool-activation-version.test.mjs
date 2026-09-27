@@ -38,7 +38,7 @@ function hostRedirectHook(version) {
 	`;
 }
 
-function run({ messages = [], hook = "" } = {}) {
+function run({ messages = [], hook = "", legacyHost = false } = {}) {
 	const root = mkdtempSync(join(tmpdir(), "pi-web-access-version-"));
 	writeFileSync(join(root, "web-search.json"), JSON.stringify({}), "utf8");
 	const child = spawnSync(process.execPath, ["--input-type=module"], {
@@ -54,7 +54,12 @@ function run({ messages = [], hook = "" } = {}) {
 			const pi = {
 				registerTool(tool) { tools.set(tool.name, tool); active.push(tool.name); },
 				registerCommand() {}, registerShortcut() {},
-				on(event, handler) { const list = handlers.get(event) ?? []; list.push(handler); handlers.set(event, list); },
+				on(event, handler) {
+					const list = handlers.get(event) ?? [];
+					list.push(handler);
+					handlers.set(event, list);
+					if (!${legacyHost}) return () => list.splice(list.indexOf(handler), 1);
+				},
 				getAllTools() { return [...tools.values()]; },
 				getActiveTools() { return [...active]; },
 				setActiveTools(names) { active = [...names]; },
@@ -91,6 +96,13 @@ test("activation needs no Pi package on disk when the host redirects extension i
 	assert.deepEqual(state.active.filter(name => web.includes(name)), [], `web tools should stay dormant, got ${state.active.join(", ")}`);
 });
 
+test("a stale Pi package beside the extension cannot disable activation", () => {
+	// Issue #444: a managed install kept a 0.85.1 peer beside the extension while Pi 0.87.1 ran it.
+	const state = run({ hook: hostRedirectHook("0.85.1") });
+	assert.deepEqual(state.warnings, []);
+	assert.ok(state.active.includes("web_enable"), `expected web_enable, got ${state.active.join(", ")}`);
+});
+
 test("a host-redirected warm session restores exactly the tools it recorded", () => {
 	const messages = [
 		{ role: "system", content: "", toolsAdded: [{ name: "web_search", description: "", parameters: { type: "object" } }], timestamp: 1 },
@@ -102,10 +114,10 @@ test("a host-redirected warm session restores exactly the tools it recorded", ()
 	assert.equal(state.active.includes("fetch_content"), false, `fetch_content was never recorded, got ${state.active.join(", ")}`);
 });
 
-test("a host older than 0.86.1 falls back to eager web tools without crashing", () => {
-	const state = run({ hook: hostRedirectHook("0.86.0") });
+test("a host older than 0.86.0 falls back to eager web tools without crashing", () => {
+	const state = run({ legacyHost: true });
 	assert.equal(state.warnings.length, 1);
-	assert.match(state.warnings[0], /requires Pi 0\.86\.1 or newer/);
+	assert.match(state.warnings[0], /requires Pi 0\.86\.0 or newer/);
 	assert.equal(state.active.includes("web_enable"), false);
 	assert.ok(state.active.includes("web_search"), `expected eager web_search, got ${state.active.join(", ")}`);
 });

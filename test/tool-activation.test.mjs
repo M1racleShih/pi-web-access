@@ -20,7 +20,7 @@ function run(config = {}, options = {}) {
 			const pi = {
 				registerTool(tool) { tools.set(tool.name, tool); if (!options.unavailable?.includes(tool.name)) active.push(tool.name); },
 				registerCommand() {}, registerShortcut() {},
-				on(event, handler) { const list = handlers.get(event) ?? []; list.push(handler); handlers.set(event, list); },
+				on(event, handler) { const list = handlers.get(event) ?? []; list.push(handler); handlers.set(event, list); return () => {}; },
 				getAllTools() { return [...tools.values()].filter(tool => !options.unavailable?.includes(tool.name)); },
 				getActiveTools() { return [...active]; },
 				setActiveTools(names) {
