@@ -4,14 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-09-30
+
+### Highlights
+
+- Tell the summarizer what matters to you, such as keeping prices, limits, and versions exactly as written.
+- Brave search holds up on low-rate plans instead of failing when several searches run at once.
+- OpenAI web search works when you signed in to Pi with your ChatGPT account.
+
 ### Added
 
-- `summaryInstructions` in `web-search.json` appends your own requirements to the summary prompt used by the curator and `auto-summary` workflow, for example to keep prices, limits, and versions verbatim. The built-in guardrails stay in place. Thanks to [@rcharrisg](https://github.com/rcharrisg) for [#489](https://github.com/nicobailon/pi-web-access/pull/489).
+- Add your own instructions to search summaries with `summaryInstructions` in `web-search.json`, for example "keep prices, limits, and versions verbatim." They apply to summaries from the curator and the `auto-summary` workflow, and the built-in safety rules still apply. Thanks to [@rcharrisg](https://github.com/rcharrisg) for [PR #489](https://github.com/nicobailon/pi-web-access/pull/489).
 
 ### Fixed
 
-- Brave searches now share an adaptive in-process queue that honors the provider's `X-RateLimit-*` and `Retry-After` headers. Concurrent batch queries no longer immediately exceed low-throughput plans, one HTTP 429 response is retried after the advertised short reset, and long quota resets fail fast while keeping the advertised cooldown active for later queued calls. The existing 30-second search deadline now covers queueing, cooldown waits, and both request attempts, and failure to cancel a retryable response body cannot discard the recorded cooldown or retry. Thanks to [@saschaSpoonbill](https://github.com/saschaSpoonbill) for [#487](https://github.com/nicobailon/pi-web-access/pull/487).
-- OpenAI web search now supports Pi's "Sign in with ChatGPT" login on the `openai` provider. The access token goes to the official `api.openai.com` Responses API, as Pi sends it, instead of the ChatGPT Codex endpoint, and `auto` search prefers OpenAI for this subscription login just as it does for `openai-codex`. An `openai` API key keeps the Exa-first order. Thanks to [@kasumikira](https://github.com/kasumikira) for [#488](https://github.com/nicobailon/pi-web-access/issues/488).
+- Brave searches now wait their turn according to the rate limits Brave reports, so running several searches at once no longer overruns low-rate plans. If Brave says to slow down and the wait is short, the search retries once. If the wait is long, it fails right away and later searches respect the same wait. The 30-second search timeout includes this waiting. Thanks to [@saschaSpoonbill](https://github.com/saschaSpoonbill) for [PR #487](https://github.com/nicobailon/pi-web-access/pull/487).
+- OpenAI web search now works when you signed in to Pi with "Sign in with ChatGPT" on the `openai` provider. Searches go to OpenAI's official API, and `auto` search tries OpenAI first for this login, as it already did for `openai-codex`. With an `openai` API key, `auto` still tries Exa first. Thanks to [@kasumikira](https://github.com/kasumikira) for [issue #488](https://github.com/nicobailon/pi-web-access/issues/488).
 
 ## [0.34.0] - 2026-09-30
 
