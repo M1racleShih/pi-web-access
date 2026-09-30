@@ -4,23 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-09-30
+
+### Highlights
+
+- Turning on web tools no longer costs a prompt-cache miss on models like DeepSeek. New sessions now pick the activation style that suits the model.
+- Search with Z.ai's GLM Coding Plan and use your plan quota instead of paying per call.
+- `fetch_content` now gets past Cloudflare "Just a moment..." pages by handing off to your other fetch providers.
+- Fetching works on networks where only your configured proxy can resolve hostnames.
+- `undici` is updated to pick up fixes for known security advisories.
+
 ### Added
 
 - Search with Z.ai's GLM Coding Plan web search when you select `provider: "zai"`. Set `ZAI_API_KEY` or `zaiApiKey` to your plan key, and set `zaiEndpoint: "china"` if your key comes from bigmodel.cn. Searches use your plan quota instead of per-call billing. Thanks to [@nailuoGG](https://github.com/nailuoGG) for [issue #475](https://github.com/nicobailon/pi-web-access/issues/475) and for live-testing the China endpoint in [issue #479](https://github.com/nicobailon/pi-web-access/issues/479).
 
 ### Changed
 
-- `toolActivation` now defaults to `"auto"`. New sessions start with `web_enable` only on models that accept tools added mid-conversation. On other models, such as DeepSeek, every enabled web tool is available from the first request, so Pi no longer resends the whole conversation to enable them, which could cost a prompt-cache miss. Set `"dynamic"` to always start with `web_enable`, or `"eager"` to never use it. Warm and resumed sessions keep their recorded tools. Thanks to [@tinoy1336](https://github.com/tinoy1336) for [issue #484](https://github.com/nicobailon/pi-web-access/issues/484).
-- The README now explains that `web_enable` can cause a prompt-cache miss on providers that can't add tools mid-conversation, and that `"toolActivation": "eager"` avoids it. Thanks to [@jordi9](https://github.com/jordi9) for [issue #481](https://github.com/nicobailon/pi-web-access/issues/481).
-- When `fetch_content` can't get a page, its list of fallback options now explains how to turn on the keyless Jina Reader fallback. It names only the setting you still need and keeps your current or default provider order. The hint doesn't appear if Jina already ran for that fetch. It also warns that Jina's servers fetch the target URLs. Thanks to [@SuTang-vain](https://github.com/SuTang-vain) for [PR #471](https://github.com/nicobailon/pi-web-access/pull/471).
+- `toolActivation` now defaults to `"auto"`. On models that can take tools added mid-conversation, new sessions start with `web_enable` as before. On other models, such as DeepSeek, every enabled web tool is available from the first request, so turning them on no longer makes Pi resend the whole conversation and miss the prompt cache. Set `"dynamic"` to always start with `web_enable`, or `"eager"` to never use it. Resumed sessions keep the tools they already had. The README's Tool activation section explains the trade-off. Thanks to [@tinoy1336](https://github.com/tinoy1336) for [issue #484](https://github.com/nicobailon/pi-web-access/issues/484) and [@jordi9](https://github.com/jordi9) for [issue #481](https://github.com/nicobailon/pi-web-access/issues/481).
+- Keyed Exa searches with default options or `numResults: 5` now call Exa's `/search` endpoint instead of `/answer`, like every other keyed Exa search. Their answer text now comes from the search results instead of Exa's generated answer. If you route Exa through a custom `exaBaseUrl` gateway, it must support `/search`. Thanks to [@SuTang-vain](https://github.com/SuTang-vain) for [issue #470](https://github.com/nicobailon/pi-web-access/issues/470).
+- When `fetch_content` can't get a page, its list of fallback options now explains how to turn on the keyless Jina Reader fallback. It names only the setting you still need and keeps your current or default provider order. The hint doesn't appear if Jina already ran for that fetch, and it warns that Jina's servers fetch the target URLs. Thanks to [@SuTang-vain](https://github.com/SuTang-vain) for [PR #471](https://github.com/nicobailon/pi-web-access/pull/471).
 
 ### Fixed
 
-- The `undici` dependency now requires 8.11.2 or newer. Earlier 8.x releases, including the previously locked 8.10.0, have known advisories such as decompression denial of service and TLS certificate validation bypass. Thanks to [@setanta00](https://github.com/setanta00) for [issue #483](https://github.com/nicobailon/pi-web-access/issues/483).
-- Exa results without a title are now labeled with their site's hostname, such as `cdn.jsdelivr.net`, instead of `Source N`. Results whose URL has no hostname, such as `mailto:` or `file:` links, still use `Source N`. Thanks to [@SuTang-vain](https://github.com/SuTang-vain) for [PR #469](https://github.com/nicobailon/pi-web-access/pull/469).
-- Keyed Exa searches with default options or `numResults: 5` now call Exa's `/search` endpoint instead of `/answer`, like every other keyed Exa search. Their answer text now comes from the search results instead of Exa's generated answer. If you route Exa through a custom `exaBaseUrl` gateway, it must support `/search`. Thanks to [@SuTang-vain](https://github.com/SuTang-vain) for [issue #470](https://github.com/nicobailon/pi-web-access/issues/470).
 - `fetch_content` now treats a Cloudflare "Just a moment..." challenge page returned with HTTP 200 as a failed fetch, so your configured fallback providers can retrieve the real page. Detection needs Cloudflare's `cf-mitigated: challenge` header or its challenge-page scripts, so a page that only says "Just a moment..." is unaffected. Raw mode still returns the response unchanged, and authenticated fetches report the challenge without falling back to other providers. Thanks to [@SuTang-vain](https://github.com/SuTang-vain) for [issue #472](https://github.com/nicobailon/pi-web-access/issues/472).
-- With `ssrf.trustEnvProxy: true`, the `proxy` configured in `web-search.json` now resolves hostnames for web tools instead of the local DNS preflight, so `fetch_content` works where only the proxy can resolve names. A per-call `proxy` with a different value still gets local DNS validation. When local resolution fails for a request going through the configured proxy, the error now names this setting. Thanks to [@ChenAuCarre](https://github.com/ChenAuCarre) for [issue #476](https://github.com/nicobailon/pi-web-access/issues/476).
+- With `ssrf.trustEnvProxy: true`, the `proxy` configured in `web-search.json` now resolves hostnames for web tools instead of your local DNS, so `fetch_content` works where only the proxy can resolve names. A per-call `proxy` with a different value is still checked against local DNS. When local resolution fails for a request going through the configured proxy, the error now names this setting. Thanks to [@ChenAuCarre](https://github.com/ChenAuCarre) for [issue #476](https://github.com/nicobailon/pi-web-access/issues/476).
+- Exa results without a title are now labeled with their site's hostname, such as `cdn.jsdelivr.net`, instead of `Source N`. Results whose URL has no hostname, such as `mailto:` or `file:` links, still use `Source N`. Thanks to [@SuTang-vain](https://github.com/SuTang-vain) for [PR #469](https://github.com/nicobailon/pi-web-access/pull/469).
+- `undici` is updated to 8.11.2. Earlier 8.x releases, including the 8.10.0 this package previously installed, have known security advisories such as decompression denial of service and a TLS certificate validation bypass. Thanks to [@setanta00](https://github.com/setanta00) for [issue #483](https://github.com/nicobailon/pi-web-access/issues/483).
 
 ## [0.33.0] - 2026-09-27
 
