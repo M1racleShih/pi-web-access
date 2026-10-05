@@ -263,7 +263,7 @@ The artifact preserves the `supported`, `contradicted`, `unclear`, or `missing-e
 Other agents, such as Claude Code, Codex, Cursor, or Executor, can use `web_search`, `fetch_content`, `get_search_content`, and `source_check` through a local stdio MCP server. It needs Node.js 22.19 or later and no Pi install:
 
 ```bash
-npx -y --package pi-web-access pi-web-access-mcp
+npx -y pi-web-access
 ```
 
 Add it to an `mcpServers` config (Claude Code, Cursor, and similar clients; Codex takes the same command, args, and env in its `config.toml`):
@@ -273,7 +273,7 @@ Add it to an `mcpServers` config (Claude Code, Cursor, and similar clients; Code
   "mcpServers": {
     "pi-web-access": {
       "command": "npx",
-      "args": ["-y", "--package", "pi-web-access", "pi-web-access-mcp"],
+      "args": ["-y", "pi-web-access"],
       "env": { "BRAVE_API_KEY": "BSA_..." }
     }
   }
