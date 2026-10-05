@@ -933,7 +933,7 @@ export function createWebToolCore(host: WebToolCoreHost): WebToolCoreInstance {
 			}
 			if (urlList.length === 0) {
 				return {
-					content: [{ type: "text", text: "Error: No URL provided." }],
+					content: [{ type: "text", text: "Error: No URL provided. Use the 'url' parameter, or 'urls' for parallel fetches." }],
 					details: { error: "No URL provided" },
 				};
 			}
@@ -1368,10 +1368,12 @@ function standaloneError(error: string): WebToolResult {
 	return { content: [{ type: "text", text: `Error: ${error}` }], details: { error }, isError: true };
 }
 
-// A call where nothing requested succeeded is an error: every web_search query,
-// every fetch_content URL, or every source_check search failed. A working search
-// with zero matches is not.
-function markStandaloneError(result: WebToolResult): WebToolResult {
+// Marks a final tool result as failed (`isError: true`) for both the Pi tools
+// and the MCP server. A result with details.error is an error, and so is a call
+// where nothing requested succeeded: every web_search query, every fetch_content
+// URL, or every source_check search failed. A working search with zero matches
+// is not.
+export function markToolError<T extends WebToolResult>(result: T): T {
 	const { error, queryCount, successfulQueries, urlCount, successful, searchCount, artifact } = result.details;
 	const nothingSucceeded = (typeof queryCount === "number" && queryCount > 0 && successfulQueries === 0)
 		|| (typeof urlCount === "number" && urlCount > 0 && successful === 0)
@@ -1455,18 +1457,18 @@ export function createStandaloneWebToolCore(): StandaloneWebToolCore {
 			.map((key) => DEFAULT_TOOL_NAMES[key]),
 		async webSearch(params, signal) {
 			const rejection = await standaloneProviderRejection(params.provider);
-			return rejection ? standaloneError(rejection) : markStandaloneError(await core.webSearch(params, signal));
+			return rejection ? standaloneError(rejection) : markToolError(await core.webSearch(params, signal));
 		},
 		async fetchContent(params, signal) {
 			const rejection = standaloneFetchRejection(params, settings.fetchModes);
-			return rejection ? standaloneError(rejection) : markStandaloneError(await core.fetchContent(params, signal));
+			return rejection ? standaloneError(rejection) : markToolError(await core.fetchContent(params, signal));
 		},
 		async getSearchContent(params, signal) {
-			return markStandaloneError(await core.getSearchContent(params, signal));
+			return markToolError(await core.getSearchContent(params, signal));
 		},
 		async sourceCheck(params, signal) {
 			const rejection = await standaloneProviderRejection(params.provider);
-			return rejection ? standaloneError(rejection) : markStandaloneError(await core.sourceCheck(params, signal));
+			return rejection ? standaloneError(rejection) : markToolError(await core.sourceCheck(params, signal));
 		},
 	};
 }

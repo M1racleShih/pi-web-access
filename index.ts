@@ -85,6 +85,7 @@ import {
 	getMaxInlineContentChars,
 	isToolEnabled,
 	loadConfig,
+	markToolError,
 	normalizeProviderInput,
 	normalizeQueryList,
 	normalizeRecencyFilter,
@@ -1353,7 +1354,7 @@ export default function (pi: ExtensionAPI) {
 		}),
 
 		async execute(callId, params, signal, onUpdate, ctx) {
-			return runWithProxy(typeof params.proxy === "string" ? params.proxy : undefined, async () => {
+			return markToolError(await runWithProxy(typeof params.proxy === "string" ? params.proxy : undefined, async () => {
 				const rawQueryList: unknown[] = Array.isArray(params.queries)
 					? params.queries
 					: (params.query !== undefined ? expandQueryString(params.query) : []);
@@ -1606,7 +1607,7 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 			return core.webSearch(params, signal, { extensionContext: ctx, onUpdate, summarize });
-			});
+			}));
 		},
 
 		renderCall(args, theme) {
@@ -1881,7 +1882,7 @@ export default function (pi: ExtensionAPI) {
 			})),
 		}),
 		async execute(_callId, params, signal, _onUpdate, ctx) {
-			return core.sourceCheck(params, signal, { extensionContext: ctx });
+			return markToolError(await core.sourceCheck(params, signal, { extensionContext: ctx }));
 		},
 	});
 
@@ -1930,7 +1931,7 @@ export default function (pi: ExtensionAPI) {
 		}),
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx): Promise<AgentToolResult<Record<string, unknown>>> {
-			return core.fetchContent(params, signal, { extensionContext: ctx, onUpdate });
+			return markToolError(await core.fetchContent(params, signal, { extensionContext: ctx, onUpdate }));
 		},
 
 		renderCall(args, theme) {
@@ -2094,7 +2095,7 @@ export default function (pi: ExtensionAPI) {
 		}),
 
 		async execute(_toolCallId, rawParams): Promise<AgentToolResult<Record<string, unknown>>> {
-			return core.getSearchContent(rawParams);
+			return markToolError(await core.getSearchContent(rawParams));
 		},
 
 		renderCall(args, theme) {
